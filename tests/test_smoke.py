@@ -11,6 +11,7 @@ These are just "smoke tests" to verify the refactoring didn't break imports.
 """
 
 import sys
+from importlib import import_module
 from pathlib import Path
 
 # Add src to path for imports
@@ -20,9 +21,15 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 def test_imports_work():
     """Test that all refactored modules can be imported."""
     try:
-        from road_profile_viewer import geometry, road, visualization, main
-    except ImportError as e:
-        raise AssertionError(f"Import failed: {e}")
+        for module_name in (
+            "road_profile_viewer.geometry",
+            "road_profile_viewer.road",
+            "road_profile_viewer.visualization",
+            "road_profile_viewer.main",
+        ):
+            import_module(module_name)
+    except ImportError as err:
+        raise AssertionError(f"Import failed: {err}") from err
 
     print("✅ All modules import successfully!")
 
