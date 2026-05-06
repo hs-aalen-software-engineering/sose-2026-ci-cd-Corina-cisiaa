@@ -12,6 +12,9 @@ from dash import Dash, Input, Output, dcc, html
 from road_profile_viewer.geometry import find_intersection
 from road_profile_viewer.road import generate_road_profile
 
+AngleInput = dcc.Input  # pyright: ignore[reportPrivateImportUsage]
+RoadGraph = dcc.Graph  # pyright: ignore[reportPrivateImportUsage]
+
 
 def create_dash_app() -> Dash:
     """
@@ -36,7 +39,7 @@ def create_dash_app() -> Dash:
                 html.Label(
                     "Camera Ray Angle (degrees from horizontal):", style={"fontWeight": "bold", "marginRight": "10px"}
                 ),
-                dcc.Input(
+                AngleInput(
                     id="angle-input",
                     type="number",
                     value=-1.1,
@@ -47,7 +50,7 @@ def create_dash_app() -> Dash:
             ],
             style={"textAlign": "center", "marginBottom": "20px", "padding": "10px"},
         ),
-        dcc.Graph(id="road-profile-graph", style={"height": "400px"}),
+        RoadGraph(id="road-profile-graph", style={"height": "400px"}),
         html.Div(
             [
                 html.H3("Instructions:", style={"color": "#2c3e50"}),
@@ -66,11 +69,11 @@ def create_dash_app() -> Dash:
     ])
 
     # Define the callback to update the graph
-    @app.callback(
+    @app.callback(  # pyright: ignore[reportUnknownMemberType]
         [Output("road-profile-graph", "figure"), Output("intersection-info", "children")],
         [Input("angle-input", "value")],
     )
-    def update_graph(angle):
+    def update_graph(angle: float | None) -> tuple[go.Figure, str]:  # pyright: ignore[reportUnusedFunction]
         """
         Update the graph based on the input angle.
 
@@ -84,8 +87,7 @@ def create_dash_app() -> Dash:
         tuple
             (plotly figure, info text)
         """
-        if angle is None:
-            angle = -1.1
+        angle_value = -1.1 if angle is None else float(angle)
 
         # Generate road profile
         x_road, y_road = generate_road_profile(num_points=100, x_max=80)
@@ -94,7 +96,9 @@ def create_dash_app() -> Dash:
         camera_x, camera_y = 0, 2.0
 
         # Find intersection first to determine ray length
-        x_intersect, y_intersect, distance = find_intersection(x_road, y_road, angle, camera_x, camera_y)
+        x_intersect, y_intersect, distance = find_intersection(
+            x_road, y_road, angle_value, camera_x, camera_y
+        )
 
         # Calculate adaptive ray line based on intersection
         if x_intersect is not None:
@@ -103,7 +107,7 @@ def create_dash_app() -> Dash:
             y_ray = np.array([camera_y, y_intersect])
         else:
             # No intersection - show a short ray (20 units or to edge of plot)
-            angle_rad = -np.deg2rad(angle)
+            angle_rad = -np.deg2rad(angle_value)
             if np.abs(np.cos(angle_rad)) < 1e-10:
                 # Vertical line
                 x_ray = np.array([camera_x, camera_x])
@@ -125,8 +129,8 @@ def create_dash_app() -> Dash:
                 y=y_road,
                 mode="lines+markers",
                 name="Road Profile",
-                line=dict(color="#4a4a4a", width=3),
-                marker=dict(size=4, color="#4a4a4a"),
+                line={"color": "#4a4a4a", "width": 3},
+                marker={"size": 4, "color": "#4a4a4a"},
                 hovertemplate="Road<br>x: %{x:.2f}<br>y: %{y:.2f}<extra></extra>",
             )
         )
@@ -138,7 +142,7 @@ def create_dash_app() -> Dash:
                 y=[camera_y],
                 mode="markers",
                 name="Camera",
-                marker=dict(size=12, color="red", symbol="circle"),
+                marker={"size": 12, "color": "red", "symbol": "circle"},
                 hovertemplate="Camera<br>Position: (%{x:.2f}, %{y:.2f})<extra></extra>",
             )
         )
@@ -149,8 +153,8 @@ def create_dash_app() -> Dash:
                 x=x_ray,
                 y=y_ray,
                 mode="lines",
-                name=f"Camera Ray ({angle}°)",
-                line=dict(color="blue", width=2, dash="dash"),
+                name=f"Camera Ray ({angle_value}°)",
+                line={"color": "blue", "width": 2, "dash": "dash"},
                 hovertemplate="Camera Ray<br>x: %{x:.2f}<br>y: %{y:.2f}<extra></extra>",
             )
         )
@@ -164,8 +168,11 @@ def create_dash_app() -> Dash:
                     y=[y_intersect],
                     mode="markers",
                     name="Intersection",
-                    marker=dict(size=15, color="green", symbol="star"),
-                    hovertemplate=f"Intersection Point<br>Position: ({x_intersect:.2f}, {y_intersect:.2f})<br>Distance from camera: {distance:.2f}<extra></extra>",
+                    marker={"size": 15, "color": "green", "symbol": "star"},
+                    hovertemplate=(
+                        f"Intersection Point<br>Position: ({x_intersect:.2f}, {y_intersect:.2f})"
+                        f"<br>Distance from camera: {distance:.2f}<extra></extra>"
+                    ),
                 )
             )
             info_text = f"Intersection found at ({x_intersect:.2f}, {y_intersect:.2f}) | Distance: {distance:.2f} units"
@@ -174,23 +181,28 @@ def create_dash_app() -> Dash:
 
         # Update layout
         fig.update_layout(
-            xaxis_title="X Position (m)",
             yaxis_title="Y Position (m)",
             hovermode="closest",
             showlegend=True,
-            legend=dict(
-                x=1.02,
-                y=1,
-                xanchor="left",
-                yanchor="top",
-                bgcolor="rgba(255,255,255,0.8)",
-                bordercolor="#dee2e6",
-                borderwidth=1,
-            ),
+            legend={
+                "x": 1.02,
+                "y": 1,
+                "xanchor": "left",
+                "yanchor": "top",
+                "bgcolor": "rgba(255,255,255,0.8)",
+                "bordercolor": "#dee2e6",
+                "borderwidth": 1,
+            },
             plot_bgcolor="#f8f9fa",
-            xaxis=dict(gridcolor="#dee2e6", range=[-2, 82], constrain="domain"),
-            yaxis=dict(gridcolor="#dee2e6", scaleanchor="x", scaleratio=1, range=[-0.5, 10], constrain="domain"),
-            margin=dict(l=50, r=150, t=30, b=50),
+            xaxis={"gridcolor": "#dee2e6", "range": [-2, 82], "constrain": "domain"},
+            yaxis={
+                "gridcolor": "#dee2e6",
+                "scaleanchor": "x",
+                "scaleratio": 1,
+                "range": [-0.5, 10],
+                "constrain": "domain",
+            },
+            margin={"l": 50, "r": 150, "t": 30, "b": 50},
         )
 
         return fig, info_text
